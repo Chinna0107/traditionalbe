@@ -15,14 +15,8 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/admin/upload', require('./routes/upload'));
 
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.get('/api/*', (req, res) => res.status(404).json({ error: 'API route not found' }));
-
-// Catch-all route to serve the React index.html for client-side routing
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.use((req, res) => res.status(404).json({ error: 'API route not found' }));
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+module.exports = app;
