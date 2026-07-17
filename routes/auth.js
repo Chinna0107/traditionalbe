@@ -15,6 +15,24 @@ function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+async function sendOrderEmailToAdmin(orderNumber, total) {
+  try {
+    await transporter.sendMail({
+      from: `"Moksha Mandir" <${process.env.EMAIL_USER}>`,
+      to: 'sakethkotha48@gmail.com',
+      subject: `New Order Received - ${orderNumber}`,
+      html: `
+        <h2>New Order Placed (Auth User)!</h2>
+        <p><strong>Order Number:</strong> ${orderNumber}</p>
+        <p><strong>Total Amount:</strong> ₹${total}</p>
+        <p>Please check the admin dashboard for more details.</p>
+      `
+    });
+  } catch (err) {
+    console.error('Email send failed:', err);
+  }
+}
+
 async function sendOTPEmail(email, otp, name) {
   await transporter.sendMail({
     from: `"Moksha Mandir" <${process.env.EMAIL_USER}>`,
@@ -198,6 +216,9 @@ router.post('/orders', authMiddleware, async (req, res) => {
       [req.user.id, orderNumber, total, itemsJson, addressJson, 'pending']
     );
     
+    // Send email to admin
+    sendOrderEmailToAdmin(orderNumber, total);
+
     res.json({ success: true, order: result.rows[0] });
   } catch (err) {
     console.error(err);
