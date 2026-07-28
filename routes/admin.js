@@ -159,13 +159,19 @@ router.post('/products', authMiddleware, adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'At least one size with price is required.' });
     }
 
+    const sanitizedSizes = sizes.map(s => ({
+      size: s.size,
+      price: Number(s.price) || 0,
+      mrp: s.mrp ? Number(s.mrp) : null
+    }));
+
     try {
     const result = await pool.query(
       `INSERT INTO products 
        (name, description, stock, sizes, image_url, images, color, category, model, is_active, is_bestseller, is_trending, is_offer, is_festive) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
       [
-        name, description, stock, JSON.stringify(sizes), image_url, 
+        name, description, stock, JSON.stringify(sanitizedSizes), image_url, 
         JSON.stringify(images || []), color, category, model, 
         is_active ?? true,
         is_bestseller ?? false,
@@ -183,7 +189,12 @@ router.post('/products', authMiddleware, adminOnly, async (req, res) => {
 router.put('/products/:id', authMiddleware, adminOnly, async (req, res) => {
   const { name, description, sizes, stock, image_url, images, color, category, model, is_active, is_bestseller, is_trending, is_offer, is_festive } = req.body;
   try {
-    const sizesJson = Array.isArray(sizes) ? JSON.stringify(sizes) : '[]';
+    const sanitizedSizes = Array.isArray(sizes) ? sizes.map(s => ({
+      size: s.size,
+      price: Number(s.price) || 0,
+      mrp: s.mrp ? Number(s.mrp) : null
+    })) : [];
+    const sizesJson = JSON.stringify(sanitizedSizes);
     const imagesJson = Array.isArray(images) ? JSON.stringify(images) : (image_url ? JSON.stringify([image_url]) : '[]');
     const result = await pool.query(
       'UPDATE products SET name=$1, description=$2, sizes=$3, stock=$4, image_url=$5, images=$6, color=$7, category=$8, model=$9, is_active=$10, is_bestseller=$11, is_trending=$12, is_offer=$13, is_festive=$14 WHERE id=$15 RETURNING *',
