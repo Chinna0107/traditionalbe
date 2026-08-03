@@ -3,6 +3,7 @@ const pool = require('../db');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { sendPurchaseEvent } = require('../utils/metaPixel');
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -80,11 +81,19 @@ router.post('/orders', async (req, res) => {
     
     // Send email to admin
     sendOrderEmailToAdmin(orderNumber, total);
-    
+
+    // Meta Conversions API — Purchase
+    sendPurchaseEvent({
+      orderId: orderNumber,
+      total,
+      clientIp: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    });
+
     res.json({ success: true, order: result.rows[0] });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to place order' });
+    console.error('Order creation error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

@@ -3,6 +3,7 @@ const pool = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const { sendPurchaseEvent } = require('../utils/metaPixel');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
@@ -220,6 +221,15 @@ router.post('/orders', authMiddleware, async (req, res) => {
     
     // Send email to admin
     sendOrderEmailToAdmin(orderNumber, total);
+
+    // Meta Conversions API — Purchase
+    sendPurchaseEvent({
+      orderId: orderNumber,
+      total,
+      clientIp: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      email: req.user.email,
+    });
 
     res.json({ success: true, order: result.rows[0] });
   } catch (err) {
