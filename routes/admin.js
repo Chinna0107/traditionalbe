@@ -90,12 +90,17 @@ router.post('/orders/:id/ship', authMiddleware, adminOnly, async (req, res) => {
     let address = {};
     try { address = typeof order.address === 'string' ? JSON.parse(order.address) : (order.address || {}); } catch(e) {}
 
-    const orderItems = items.map(item => ({
-      name: item.product?.name || 'Product',
-      sku: item.variant?.size || 'Default',
-      units: item.qty || 1,
-      selling_price: item.variant?.price || item.product?.price || 0,
-    }));
+    const orderItems = items.map((item, idx) => {
+      const productId = item.product?.id || item.id || idx + 1;
+      const size = item.variant?.size || item.size || '';
+      const sku = `SKU-${productId}-${size ? size.replace(/\s+/g, '') : idx + 1}`;
+      return {
+        name: item.product?.name || item.name || 'Product',
+        sku,
+        units: item.qty || 1,
+        selling_price: item.variant?.price || item.price || item.product?.price || 0,
+      };
+    });
 
     const shiprocketPayload = {
       order_id: order.order_number || order.id.toString(),
