@@ -46,6 +46,7 @@ async function createCustomOrder(orderData) {
 }
 
 async function assignAWB(shipmentId) {
+  if (!shipmentId) throw new Error('assignAWB called with no shipmentId');
   const token = await authenticate();
   if (token === "mock_token") {
     return { response: { data: { awb_code: "MOCKAWB" + Date.now(), track_url: "https://mock.shiprocket.co/tracking/MOCKAWB" } } };

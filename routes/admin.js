@@ -121,12 +121,28 @@ router.post('/orders/:id/ship', authMiddleware, adminOnly, async (req, res) => {
 
     // 1. Create Custom Order in Shiprocket
     const srOrder = await shiprocket.createCustomOrder(shiprocketPayload);
+    console.log('Shiprocket createOrder response:', JSON.stringify(srOrder));
     const shipmentId = srOrder.shipment_id || srOrder.payload?.shipment_id;
     if (!shipmentId) throw new Error('Shiprocket did not return a shipment_id');
 
     // 2. Generate AWB
     const awbRes = await shiprocket.assignAWB(shipmentId);
-    const awbCode = awbRes.response?.data?.awb_code || awbRes.awb_code;
+    console.log('Shiprocket assignAWB response:', JSON.stringify(awbRes));
+
+    let awbCode =
+      awbRes?.response?.data?.awb_code ||
+      awbRes?.awb_code ||
+      awbRes?.data?.awb_code ||
+      awbRes?.payload?.awb_code;
+
+    // If AWB already assigned, extract it from the error message
+    if (!awbCode && awbRes?.awb_assign_status === 0) {
+      const errMsg = awbRes?.response?.data?.awb_assign_error || '';
+      const match = errMsg.match(/awb\s*-\s*(\S+)/);
+      if (match) awbCode = match[1];
+    }
+
+    if (!awbCode) throw new Error(`AWB not returned. Raw response: ${JSON.stringify(awbRes)}`);
 
     // 3. Save to database
     await pool.query(
