@@ -149,6 +149,16 @@ router.post('/razorpay/verify', async (req, res) => {
   }
 });
 
+// GET /api/general/reviews
+router.get('/reviews', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM reviews WHERE is_active = true ORDER BY created_at DESC');
+    res.json({ reviews: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/general/banners
 router.get('/banners', async (req, res) => {
   try {

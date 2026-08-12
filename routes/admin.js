@@ -368,4 +368,41 @@ router.delete('/categories/:id', authMiddleware, adminOnly, async (req, res) => 
   }
 });
 
+// --- REVIEWS ---
+router.get('/reviews', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM reviews ORDER BY created_at DESC');
+    res.json({ reviews: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/reviews', authMiddleware, adminOnly, async (req, res) => {
+  const { name, rating, review, is_active } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO reviews (name, rating, review, is_active) VALUES ($1,$2,$3,$4) RETURNING *',
+      [name, rating, review, is_active ?? true]
+    );
+    res.json({ review: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/reviews/:id', authMiddleware, adminOnly, async (req, res) => {
+  const { name, rating, review, is_active } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE reviews SET name=$1, rating=$2, review=$3, is_active=$4 WHERE id=$5 RETURNING *',
+      [name, rating, review, is_active, req.params.id]
+    );
+    res.json({ review: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/reviews/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM reviews WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
