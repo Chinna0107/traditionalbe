@@ -277,5 +277,72 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  try {
+    const existing = await pool.query('SELECT * FROM users WHERE email=$1', [email]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Email not found' });
+
+    const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await pool.query('DELETE FROM otps WHERE email=$1', [email]);
+    await pool.query('INSERT INTO otps (email, otp, expires_at) VALUES ($1,$2,$3)', [email, otp, expiresAt]);
+
+    await sendOTPEmail(email, otp, existing.rows[0].name);
+    res.json({ message: 'OTP sent to your email' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/auth/verify-forgot-otp
+router.post('/verify-forgot-otp', async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM otps WHERE email=$1 AND otp=$2 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+      [email, otp]
+    );
+    if (!result.rows.length) return res.status(400).json({ error: 'Invalid or expired OTP' });
+    
+    res.json({ message: 'OTP verified' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  if (!email || !otp || !newPassword) return res.status(400).json({ error: 'All fields required' });
+
+  try {
+    const result = await pool.query(
+      'SELECT * FROM otps WHERE email=$1 AND otp=$2 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+      [email, otp]
+    );
+    if (!result.rows.length) return res.status(400).json({ error: 'Invalid or expired OTP' });
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash=$1 WHERE email=$2', [hash, email]);
+    await pool.query('DELETE FROM otps WHERE email=$1', [email]);
+
+    res.json({ message: 'Password reset successful' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;
+
 module.exports.authMiddleware = authMiddleware;
